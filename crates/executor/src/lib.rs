@@ -137,19 +137,26 @@ pub extern "C" fn cyproto_read_command() -> CommandRequest {
 }
 
 #[no_mangle]
+pub extern "C" fn cyproto_buffer_size() -> usize {
+    return cyproto_core::BYTES_MAX;
+}
+
+#[no_mangle]
 pub extern "C" fn cyproto_scan_size(cmd: ScanCommand) -> usize {
     return ((cmd.end_angle - cmd.start_angle) * (1 / cmd.fidelity)).into();
 }
 
 #[no_mangle]
-pub extern "C" fn cyproto_drive_done(val: DriveDone) -> CyprotoError {
+pub extern "C" fn cyproto_drive_done(val: DriveDone, buf: *mut u8) -> usize {
+    let buf_size = cyproto_buffer_size();
+    let mut buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
+
     let DriveDone { total_distance, .. } = val;
     let res = Response::DriveDone { total_distance };
 
-    send(&res)
-        .map_err(|_| CyprotoError::Postcard)
-        .err()
-        .unwrap_or_default()
+    postcard::to_slice_cobs(&res, &mut buf)
+        .map(|v| v.len())
+        .unwrap_or(0)
 }
 
 #[no_mangle]

@@ -73,7 +73,9 @@ typedef struct TurnDone {
   float total_angle;
 } TurnDone;
 
-enum CyprotoError cyproto_drive_done(struct DriveDone val);
+size_t cyproto_buffer_size(void);
+
+size_t cyproto_drive_done(struct DriveDone val, uint8_t *buf);
 
 struct CommandRequest cyproto_read_command(void);
 
