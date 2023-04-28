@@ -1,0 +1,2 @@
+[toolchain]
+channel = "nightly" # nightly is required for cybot due to the global allocator
