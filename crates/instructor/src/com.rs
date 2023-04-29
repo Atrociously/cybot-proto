@@ -15,6 +15,7 @@ pub fn read_response(stream: &mut crate::Socket) -> Result<Option<Response>, Box
     // otherwise read until the end of the packet
     buffer.extend_from_slice(temp_buf);
     reader.read_until(0, &mut buffer)?;
+    println!("{:?}", buffer);
     let response: Response = postcard::from_bytes_cobs(&mut buffer)?;
     Ok(Some(response))
 }

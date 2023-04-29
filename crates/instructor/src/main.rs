@@ -1,11 +1,11 @@
-use std::{f32::consts::PI, net::TcpStream};
+use std::{f32::consts::PI, net::TcpStream, io::Read};
 
 use bevy::{
     prelude::{shape::Circle, *},
     sprite::MaterialMesh2dBundle,
 };
 use com::{send_command, read_response};
-use cyproto_core::Command;
+use cyproto_core::{Command, Response};
 
 mod com;
 
@@ -107,7 +107,11 @@ fn update(
 }
 
 fn main() {
-    //let socket = TcpStream::connect("192.168.1.1:288").unwrap();
+    let mut socket = Socket(TcpStream::connect("192.168.1.1:288").unwrap());
+
+    while let Some(res) = read_response(&mut socket).unwrap() {
+        println!("{res:?}");
+    }
 
     App::new()
         .add_plugins(DefaultPlugins)
