@@ -28,9 +28,8 @@ typedef struct TurnCommand {
 } TurnCommand;
 
 typedef struct ScanCommand {
-  uint8_t start_angle;
-  uint8_t end_angle;
-  uint8_t fidelity;
+  uint8_t start;
+  uint8_t end;
 } ScanCommand;
 
 typedef enum CommandRequest_Tag {

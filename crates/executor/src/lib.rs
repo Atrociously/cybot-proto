@@ -41,9 +41,8 @@ pub struct TurnDone {
 #[repr(C)]
 #[derive(Default)]
 pub struct ScanCommand {
-    pub start_angle: u8,
-    pub end_angle: u8,
-    pub fidelity: u8,
+    pub start: u8,
+    pub end: u8,
 }
 
 #[repr(C)]
@@ -121,11 +120,10 @@ pub extern "C" fn cyproto_read_command() -> CommandRequest {
                 speed
             })
         }
-        Ok(Command::Scan { range, fidelity }) => {
+        Ok(Command::Scan { start, end, fidelity }) => {
             CommandRequest::Scan(ScanCommand {
-                start_angle: *range.start(),
-                end_angle: *range.end(),
-                fidelity,
+                start,
+                end,
             })
         }
         Err(_) => {
@@ -151,8 +149,8 @@ pub extern "C" fn cyproto_drive_done(val: DriveDone, buf: *mut u8) -> usize {
     let buf_size = cyproto_buffer_size();
     let mut buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
 
-    let DriveDone { total_distance, .. } = val;
-    let res = Response::DriveDone { total_distance };
+    let DriveDone { total_distance, cliff_detected, bump_detected } = val;
+    let res = Response::DriveDone { total_distance, bump_detected, cliff_detected };
 
     postcard::to_slice_cobs(&res, &mut buf)
         .map(|v| v.len())
