@@ -76,6 +76,8 @@ size_t cyproto_buffer_size(void);
 
 size_t cyproto_drive_done(struct DriveDone val, uint8_t *buf);
 
+struct CommandRequest cyproto_parse_command(uint8_t *buf);
+
 struct CommandRequest cyproto_read_command(void);
 
 enum CyprotoError cyproto_scan_done(struct ScanDone val);

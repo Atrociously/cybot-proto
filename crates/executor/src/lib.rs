@@ -103,6 +103,7 @@ fn send<T: serde::Serialize>(val: &T) -> Result<(), postcard::Error> {
     Ok(())
 }
 
+#[no_mangle]
 pub extern "C" fn cyproto_parse_command(buf: *mut u8) -> CommandRequest {
     let buf_size = cyproto_buffer_size();
     let buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
