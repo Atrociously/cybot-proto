@@ -80,6 +80,6 @@ struct CommandRequest cyproto_read_command(void);
 
 enum CyprotoError cyproto_scan_done(struct ScanDone val);
 
-size_t cyproto_scan_size(struct ScanCommand cmd);
-
 enum CyprotoError cyproto_turn_done(struct TurnDone val);
+
+size_t max_objects(void);

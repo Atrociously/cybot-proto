@@ -103,6 +103,36 @@ fn send<T: serde::Serialize>(val: &T) -> Result<(), postcard::Error> {
     Ok(())
 }
 
+pub extern "C" fn cyproto_parse_command(buf: *mut u8) -> CommandRequest {
+    let buf_size = cyproto_buffer_size();
+    let buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
+
+    let res: Result<Command, _> = postcard::from_bytes_cobs(buf);
+    match res {
+        Ok(Command::Drive { distance, speed }) => {
+            CommandRequest::Drive(DriveCommand {
+                distance,
+                speed,
+            })
+        }
+        Ok(Command::Turn { angle, speed }) => {
+            CommandRequest::Turn(TurnCommand {
+                angle,
+                speed
+            })
+        }
+        Ok(Command::Scan { start, end }) => {
+            CommandRequest::Scan(ScanCommand {
+                start,
+                end,
+            })
+        }
+        Err(_) => {
+            CommandRequest::Error(CyprotoError::Postcard)
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn cyproto_read_command() -> CommandRequest {
     let res: Result<Command, _> = recieve();
@@ -120,7 +150,7 @@ pub extern "C" fn cyproto_read_command() -> CommandRequest {
                 speed
             })
         }
-        Ok(Command::Scan { start, end, fidelity }) => {
+        Ok(Command::Scan { start, end }) => {
             CommandRequest::Scan(ScanCommand {
                 start,
                 end,
@@ -140,19 +170,19 @@ pub extern "C" fn cyproto_buffer_size() -> usize {
 }
 
 #[no_mangle]
-pub extern "C" fn cyproto_scan_size(cmd: ScanCommand) -> usize {
-    return ((cmd.end_angle - cmd.start_angle) * (1 / cmd.fidelity)).into();
+pub extern "C" fn max_objects() -> usize {
+    return cyproto_core::SCAN_MAX;
 }
 
 #[no_mangle]
 pub extern "C" fn cyproto_drive_done(val: DriveDone, buf: *mut u8) -> usize {
     let buf_size = cyproto_buffer_size();
-    let mut buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
+    let buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
 
     let DriveDone { total_distance, cliff_detected, bump_detected } = val;
     let res = Response::DriveDone { total_distance, bump_detected, cliff_detected };
 
-    postcard::to_slice_cobs(&res, &mut buf)
+    postcard::to_slice_cobs(&res, buf)
         .map(|v| v.len())
         .unwrap_or(0)
 }
