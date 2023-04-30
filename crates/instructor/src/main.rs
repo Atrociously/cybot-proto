@@ -267,13 +267,11 @@ fn update(
                 if cliff_detected || bump_detected {
                     ev_cliffs.send(CliffEvent);
                 }
-                println!("{}", distance - total_distance);
             }
-            (State::SentTurn { angle }, Some(Response::TurnDone { total_angle })) => {
+            (State::SentTurn { .. }, Some(Response::TurnDone { total_angle })) => {
                 *prev_pos = cybot_pos.clone();
                 cybot_pos.rotate_z(total_angle.to_radians());
                 console.send(PrintConsoleLine::new(format!("Turned: {total_angle:.2}°").into()));
-                println!("{}", angle - total_angle);
             }
             (State::SentScan { .. }, Some(Response::ScanDone { data })) => {
                 console.send(PrintConsoleLine::new(
