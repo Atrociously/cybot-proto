@@ -10,11 +10,11 @@ use bevy::{
 };
 use bevy_console::PrintConsoleLine;
 use com::read_response;
-use con::CliPlugin;
+use console::CliPlugin;
 use cyproto_core::{ObjectData, Response};
 
 mod com;
-mod con;
+mod console;
 
 const CYBOT_RADIUS_CM: f32 = 16.;
 
