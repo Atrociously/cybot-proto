@@ -240,7 +240,12 @@ fn update(
     let mut prev_pos = prev.single_mut();
 
     if *state != State::Normal {
-        let response = read_response(&mut socket).unwrap();
+        let response = read_response(&mut socket);
+        if response.is_err() {
+            console.send(PrintConsoleLine::new(response.unwrap_err().to_string().into()));
+            *state = State::Normal;
+        }
+        let response = response.unwrap();
         match (*state, response) {
             (
                 State::SentDrive { distance },
@@ -319,7 +324,7 @@ fn update(
 }
 
 fn main() {
-    let socket = Socket(TcpStream::connect("localhost:2888").unwrap());
+    let socket = Socket(TcpStream::connect("192.168.1.1:288").unwrap());
     socket
         .0
         .set_nonblocking(true)

@@ -1,7 +1,7 @@
 #![no_std]
 
-use cybot::{self, UartCom};
-use cyproto_core::{Bytes, Command, Response, SCAN_MAX};
+extern crate panic_abort;
+use cyproto_core::{Command, Response, SCAN_MAX};
 
 #[repr(C)]
 #[derive(Default)]
@@ -67,42 +67,6 @@ pub enum CommandRequest {
     Scan(ScanCommand),
 }
 
-static mut UART: Option<UartCom> = None;
-
-fn get_uart() -> &'static UartCom {
-    cybot::cortex_m::interrupt::free(|_| {
-        if unsafe { UART.is_none() } {
-            let uart = UartCom::take().unwrap();
-            unsafe { UART = Some(uart) }
-        }
-        unsafe { UART.as_ref().unwrap_unchecked() }
-    })
-}
-
-fn recieve<T: serde::de::DeserializeOwned>() -> Result<T, CyprotoError> {
-    let uart = get_uart();
-    let mut buffer = Bytes::new();
-
-    let mut next = uart.uart_recieve();
-    while next != 0 {
-        buffer.push(next).map_err(|_| CyprotoError::BufferOverflow)?;
-        next = uart.uart_recieve();
-    }
-    buffer.push(next).map_err(|_| CyprotoError::BufferOverflow)?;
-
-    postcard::from_bytes_cobs(&mut buffer).map_err(|_| CyprotoError::Postcard)
-}
-
-fn send<T: serde::Serialize>(val: &T) -> Result<(), postcard::Error> {
-    let uart = get_uart();
-    let buf: Bytes = postcard::to_vec_cobs(val)?;
-
-    for byte in buf {
-        uart.uart_send(byte);
-    }
-    Ok(())
-}
-
 #[no_mangle]
 pub extern "C" fn cyproto_parse_command(buf: *mut u8) -> CommandRequest {
     let buf_size = cyproto_buffer_size();
@@ -134,47 +98,22 @@ pub extern "C" fn cyproto_parse_command(buf: *mut u8) -> CommandRequest {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn cyproto_read_command() -> CommandRequest {
-    let res: Result<Command, _> = recieve();
-
-    let req = match res {
-        Ok(Command::Drive { distance, speed }) => {
-            CommandRequest::Drive(DriveCommand {
-                distance,
-                speed,
-            })
-        }
-        Ok(Command::Turn { angle, speed }) => {
-            CommandRequest::Turn(TurnCommand {
-                angle,
-                speed
-            })
-        }
-        Ok(Command::Scan { start, end }) => {
-            CommandRequest::Scan(ScanCommand {
-                start,
-                end,
-            })
-        }
-        Err(_) => {
-            CommandRequest::Error(CyprotoError::Postcard)
-        }
-    };
-
-    req
-}
-
+/// Get the expected buffer size for serializing and deserializing data
+/// make sure the buffer has exactly cyproto_buffer_size() elements
 #[no_mangle]
 pub extern "C" fn cyproto_buffer_size() -> usize {
     return cyproto_core::BYTES_MAX;
 }
 
+/// Get the maximum number of scan objects that are allowed by the buffer size
+/// make sure the buffer has exactly cyproto_buffer_size() elements
 #[no_mangle]
 pub extern "C" fn max_objects() -> usize {
     return cyproto_core::SCAN_MAX;
 }
 
+/// Serialize a drive result struct into the provided buffer
+/// make sure the buffer has exactly cyproto_buffer_size() elements
 #[no_mangle]
 pub extern "C" fn cyproto_drive_done(val: DriveDone, buf: *mut u8) -> usize {
     let buf_size = cyproto_buffer_size();
@@ -188,21 +127,30 @@ pub extern "C" fn cyproto_drive_done(val: DriveDone, buf: *mut u8) -> usize {
         .unwrap_or(0)
 }
 
+/// Serialize a turn result struct into the provided buffer
+/// make sure the buffer has exactly cyproto_buffer_size() elements
 #[no_mangle]
-pub extern "C" fn cyproto_turn_done(val: TurnDone) -> CyprotoError {
+pub extern "C" fn cyproto_turn_done(val: TurnDone, buf: *mut u8) -> usize {
+    let buf_size = cyproto_buffer_size();
+    let buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
+
     let TurnDone { total_angle } = val;
     let res = Response::TurnDone { total_angle };
 
-    send(&res)
-        .map_err(|_| CyprotoError::Postcard)
-        .err()
-        .unwrap_or_default()
+    postcard::to_slice_cobs(&res, buf)
+        .map(|v| v.len())
+        .unwrap_or(0)
 }
 
+/// Serialize a scan result struct into the provided buffer
+/// make sure the buffer has exactly cyproto_buffer_size() elements
 #[no_mangle]
-pub extern "C" fn cyproto_scan_done(val: ScanDone) -> CyprotoError {
+pub extern "C" fn cyproto_scan_done(val: ScanDone, buf: *mut u8) -> usize {
+    let buf_size = cyproto_buffer_size();
+    let buf = unsafe { core::slice::from_raw_parts_mut(buf, buf_size) };
+
     if val.size > SCAN_MAX {
-        return CyprotoError::BufferOverflow;
+        return 0;
     }
     let data = unsafe { core::slice::from_raw_parts(val.objects, val.size) };
     let data = data.iter()
@@ -211,10 +159,9 @@ pub extern "C" fn cyproto_scan_done(val: ScanDone) -> CyprotoError {
             distance: s.distance,
             width: s.width,
         });
-    let data = heapless::Vec::<_, SCAN_MAX>::from_iter(data);
+    let res = heapless::Vec::<_, SCAN_MAX>::from_iter(data);
 
-    send(&Response::ScanDone { data })
-        .map_err(|_| CyprotoError::Postcard)
-        .err()
-        .unwrap_or_default()
+    postcard::to_slice_cobs(&res, buf)
+        .map(|v| v.len())
+        .unwrap_or(0)
 }

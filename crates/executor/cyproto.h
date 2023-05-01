@@ -72,16 +72,34 @@ typedef struct TurnDone {
   float total_angle;
 } TurnDone;
 
+/**
+ * Get the expected buffer size for serializing and deserializing data
+ * make sure the buffer has exactly cyproto_buffer_size() elements
+ */
 size_t cyproto_buffer_size(void);
 
+/**
+ * Serialize a drive result struct into the provided buffer
+ * make sure the buffer has exactly cyproto_buffer_size() elements
+ */
 size_t cyproto_drive_done(struct DriveDone val, uint8_t *buf);
 
 struct CommandRequest cyproto_parse_command(uint8_t *buf);
 
-struct CommandRequest cyproto_read_command(void);
+/**
+ * Serialize a scan result struct into the provided buffer
+ * make sure the buffer has exactly cyproto_buffer_size() elements
+ */
+size_t cyproto_scan_done(struct ScanDone val, uint8_t *buf);
 
-enum CyprotoError cyproto_scan_done(struct ScanDone val);
+/**
+ * Serialize a turn result struct into the provided buffer
+ * make sure the buffer has exactly cyproto_buffer_size() elements
+ */
+size_t cyproto_turn_done(struct TurnDone val, uint8_t *buf);
 
-enum CyprotoError cyproto_turn_done(struct TurnDone val);
-
+/**
+ * Get the maximum number of scan objects that are allowed by the buffer size
+ * make sure the buffer has exactly cyproto_buffer_size() elements
+ */
 size_t max_objects(void);
