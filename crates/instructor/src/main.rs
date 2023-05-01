@@ -244,6 +244,7 @@ fn update(
         if response.is_err() {
             console.send(PrintConsoleLine::new(response.unwrap_err().to_string().into()));
             *state = State::Normal;
+            return;
         }
         let response = response.unwrap();
         match (*state, response) {
