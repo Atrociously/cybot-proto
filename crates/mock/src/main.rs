@@ -13,10 +13,8 @@ pub fn read_command(stream: &mut TcpStream) -> Result<Command, Box<dyn std::erro
     Ok(command)
 }
 
-pub fn send_response(stream: &mut TcpStream, response: &Response) -> Result<(), Box<dyn std::error::Error>> {
-    println!("{response:?}");
-    let encoded = postcard::to_stdvec_cobs(response)?;
-    stream.write_all(&encoded)?;
+pub fn send_response(stream: &mut TcpStream, res: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    stream.write_all(res)?;
     Ok(())
 }
 
@@ -38,11 +36,14 @@ fn main() {
                     } else {
                         0.0..=distance
                     };
-                    send_response(&mut stream, &Response::DriveDone {
+
+                    let mut buf = [0; cyproto_core::BYTES_MAX];
+                    let len = cyproto_executor::cyproto_drive_done(cyproto_executor::DriveDone {
                         total_distance: if failed { rand.gen_range(range) } else { distance },
                         bump_detected: if failed { rand.gen_bool(0.5) } else { false },
                         cliff_detected: if failed { rand.gen_bool(0.5) } else { false },
-                    }).unwrap();
+                    }, buf.as_mut_ptr());
+                    send_response(&mut stream, &buf[..len]).unwrap();
                 }
                 Command::Turn { angle, .. } => {
                     let failed = rand.gen_bool(0.1);
@@ -51,24 +52,30 @@ fn main() {
                     } else {
                         0.0..=angle
                     };
-                    send_response(&mut stream, &Response::TurnDone {
+
+                    let mut buf = [0; cyproto_core::BYTES_MAX];
+                    let len = cyproto_executor::cyproto_turn_done(cyproto_executor::TurnDone {
                         total_angle: if failed { rand.gen_range(range) } else { angle },
-                    }).unwrap();
+                    }, buf.as_mut_ptr());
+                    send_response(&mut stream, &buf[..len]).unwrap();
                 }
                 Command::Scan { start, end } => {
                     let num_objs: usize = rand.gen_range(0..=10);
-                    let mut objs = heapless::Vec::new();
+                    let mut objs: heapless::Vec<cyproto_executor::ObjectData, {cyproto_core::SCAN_MAX}> = heapless::Vec::new();
                     for _ in 0..num_objs {
-                        objs.push(ObjectData {
+                        objs.push(cyproto_executor::ObjectData {
                             distance: rand.gen_range(15.0..80.),
                             width: rand.gen_range(5.0..10.),
                             angle: rand.gen_range(start..=end)
                         }).unwrap();
                     }
 
-                    send_response(&mut stream, &Response::ScanDone {
-                        data: objs.into(),
-                    }).unwrap();
+                    let mut buf = [0; cyproto_core::BYTES_MAX];
+                    let len = cyproto_executor::cyproto_scan_done(cyproto_executor::ScanDone {
+                        objects: objs.as_ptr(),
+                        size: objs.len(),
+                    }, buf.as_mut_ptr());
+                    send_response(&mut stream, &buf[..len]).unwrap();
                 } 
             }
         }

@@ -8,11 +8,14 @@ version = "0.1.0"
 [lib]
 crate-type = ["rlib", "staticlib"]
 
+[features]
+default = ["panic-abort"]
+
 [dependencies]
 serde = { version = "1.0", default-features = false }
 postcard = { version = "1.0" }
 heapless = { version = "0.7" }
-panic-abort = "0.3"
+panic-abort = { version = "0.3", optional = true }
 #cybot = { path = "../../../cybot" }
 cyproto-core = { path = "../core" }
 

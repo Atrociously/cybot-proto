@@ -1,7 +1,7 @@
 #![no_std]
 use serde::{Deserialize, Serialize};
 
-pub const BYTES_MAX: usize = 512;
+pub const BYTES_MAX: usize = 256;
 pub const SCAN_MAX: usize = BYTES_MAX / core::mem::size_of::<ObjectData>();
 
 pub type Bytes = heapless::Vec<u8, SCAN_MAX>;

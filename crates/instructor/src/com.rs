@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, Write};
+use std::io::{self, Read, Write};
 
 use cyproto_core::{Command, Response};
 
@@ -6,15 +6,31 @@ pub fn read_response(
     stream: &mut crate::Socket,
 ) -> Result<Option<Response>, Box<dyn std::error::Error>> {
     let mut buffer = Vec::new();
-    let mut reader = io::BufReader::with_capacity(1, &mut stream.0);
 
-    match reader.read_until(0, &mut buffer) {
-        Ok(_) => (),
-        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+
+    // don't block until the first byte of data comes across the buffer
+    let mut byte_buf = [0; 1];
+    if let Err(err) = stream.0.read(&mut byte_buf) {
+        if err.kind() == io::ErrorKind::WouldBlock {
             return Ok(None);
+        } else {
+            return Err(Box::new(err));
         }
-        Err(e) => return Err(Box::new(e)),
     }
+    buffer.push(byte_buf[0]);
+
+    // the rest of the data should follow quickly after the first
+    while byte_buf[0] != 0 {
+        while let Err(err) = stream.0.read(&mut byte_buf) {
+            if err.kind() == io::ErrorKind::WouldBlock {
+                continue;
+            } else {
+                return Err(Box::new(err));
+            }
+        }
+        buffer.push(byte_buf[0]);
+    }
+    println!("{:?}", buffer);
     let response: Response = postcard::from_bytes_cobs(&mut buffer)?;
     Ok(Some(response))
 }

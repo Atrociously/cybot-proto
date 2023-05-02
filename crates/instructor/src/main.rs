@@ -21,7 +21,7 @@ const CYBOT_RADIUS_CM: f32 = 16.;
 #[derive(Resource)]
 pub struct Socket(TcpStream);
 
-#[derive(Clone, Copy, Resource, PartialEq)]
+#[derive(Clone, Copy, Debug, Resource, PartialEq)]
 pub enum State {
     Normal,
     SentDrive { distance: f32 },
@@ -299,7 +299,9 @@ fn update(
             (_, None) => {
                 return;
             }
-            _ => unreachable!(),
+            (cmd, resp) => {
+                console.send(PrintConsoleLine::new(format!("Invalid response for command: {cmd:?} {resp:?}").into()));
+            },
         }
         *state = State::Normal;
     }
@@ -325,7 +327,7 @@ fn update(
 }
 
 fn main() {
-    let socket = Socket(TcpStream::connect("192.168.1.1:288").unwrap());
+    let socket = Socket(TcpStream::connect("localhost:2888").unwrap());
     socket
         .0
         .set_nonblocking(true)

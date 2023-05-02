@@ -1,10 +1,12 @@
 #![no_std]
 
+#[cfg(feature = "panic-abort")]
 extern crate panic_abort;
+
 use cyproto_core::{Command, Response, SCAN_MAX};
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum CyprotoError {
     #[default]
     None,
@@ -13,7 +15,7 @@ pub enum CyprotoError {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct DriveCommand {
     pub distance: f32,
     pub speed: u16,
@@ -27,7 +29,7 @@ pub struct DriveDone {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct TurnCommand {
     pub angle: f32,
     pub speed: u16,
@@ -39,14 +41,14 @@ pub struct TurnDone {
 }
 
 #[repr(C)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ScanCommand {
     pub start: u8,
     pub end: u8,
 }
 
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ObjectData {
     pub distance: f32,
     pub angle: u8,
@@ -54,12 +56,14 @@ pub struct ObjectData {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct ScanDone {
     pub size: usize,
     pub objects: *const ObjectData,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub enum CommandRequest {
     Error(CyprotoError),
     Drive(DriveCommand),
@@ -101,7 +105,7 @@ pub extern "C" fn cyproto_parse_command(buf: *mut u8) -> CommandRequest {
 /// Get the expected buffer size for serializing and deserializing data
 /// make sure the buffer has exactly cyproto_buffer_size() elements
 #[no_mangle]
-pub extern "C" fn cyproto_buffer_size() -> usize {
+pub const extern "C" fn cyproto_buffer_size() -> usize {
     return cyproto_core::BYTES_MAX;
 }
 
@@ -159,7 +163,8 @@ pub extern "C" fn cyproto_scan_done(val: ScanDone, buf: *mut u8) -> usize {
             distance: s.distance,
             width: s.width,
         });
-    let res = heapless::Vec::<_, SCAN_MAX>::from_iter(data);
+    let data = heapless::Vec::<_, SCAN_MAX>::from_iter(data);
+    let res = Response::ScanDone { data };
 
     postcard::to_slice_cobs(&res, buf)
         .map(|v| v.len())
