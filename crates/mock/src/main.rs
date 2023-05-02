@@ -26,7 +26,6 @@ fn main() {
         let (mut stream, _) = listener.accept().unwrap();
 
         while let Ok(cmd) = read_command(&mut stream) {
-            println!("{cmd:?}");
             std::thread::sleep(Duration::from_secs(1));
             match cmd {
                 Command::Drive { distance, .. } => {

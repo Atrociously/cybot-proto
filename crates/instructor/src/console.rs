@@ -21,7 +21,7 @@ pub struct DriveCli {
 pub struct TurnCli {
     #[arg(allow_negative_numbers = true)]
     pub angle: f32,
-    #[arg(default_value_t = NonZeroU16::new(200).unwrap())]
+    #[arg(default_value_t = NonZeroU16::new(100).unwrap())]
     pub speed: NonZeroU16,
 }
 

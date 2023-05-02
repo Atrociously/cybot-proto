@@ -51,9 +51,9 @@ fn cm_to_unit(cm: f32) -> f32 {
     cm * 2.0
 }
 
-fn unit_to_cm(unit: f32) -> f32 {
+/*fn unit_to_cm(unit: f32) -> f32 {
     unit / 2.0
-}
+}*/
 
 fn spawn_path(
     mut ev_path: EventReader<PathEvent>,
@@ -249,7 +249,7 @@ fn update(
         let response = response.unwrap();
         match (*state, response) {
             (
-                State::SentDrive { distance },
+                State::SentDrive { .. },
                 Some(Response::DriveDone {
                     total_distance,
                     cliff_detected,
@@ -327,7 +327,7 @@ fn update(
 }
 
 fn main() {
-    let socket = Socket(TcpStream::connect("localhost:2888").unwrap());
+    let socket = Socket(TcpStream::connect("192.168.1.1:288").unwrap());
     socket
         .0
         .set_nonblocking(true)
