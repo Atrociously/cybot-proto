@@ -6,7 +6,7 @@ use bevy::{
         shape::{Circle, Quad},
         *,
     },
-    sprite::MaterialMesh2dBundle,
+    sprite::MaterialMesh2dBundle, input::mouse::MouseMotion,
 };
 use bevy_console::PrintConsoleLine;
 use com::read_response;
@@ -42,7 +42,9 @@ pub struct Object;
 pub struct Obstacle;
 
 #[derive(Clone, Copy)]
-pub struct CliffEvent;
+pub struct CliffEvent {
+    color: Color,
+}
 
 #[derive(Clone, Copy)]
 pub struct PathEvent;
@@ -55,6 +57,7 @@ fn cm_to_unit(cm: f32) -> f32 {
     unit / 2.0
 }*/
 
+/// Spawn the path that the robot followed
 fn spawn_path(
     mut ev_path: EventReader<PathEvent>,
     cybot_pos: Query<&Transform, (With<Cybot>, Without<PreviousCybot>)>,
@@ -89,6 +92,7 @@ fn spawn_path(
     }
 }
 
+/// Spawn a cliff or bump object in the field
 fn spawn_cliff(
     mut ev_cliffs: EventReader<CliffEvent>,
     cybot_pos: Query<&Transform, With<Cybot>>,
@@ -97,7 +101,7 @@ fn spawn_cliff(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let cybot_pos = cybot_pos.single();
-    for _ in ev_cliffs.iter() {
+    for ev in ev_cliffs.iter() {
         let mut obj_pos = cybot_pos.clone();
         obj_pos.translation +=
             cybot_pos
@@ -115,7 +119,7 @@ fn spawn_cliff(
                         .into(),
                     )
                     .into(),
-                material: materials.add(ColorMaterial::from(Color::RED)),
+                material: materials.add(ColorMaterial::from(ev.color)),
                 transform: obj_pos,
                 ..default()
             },
@@ -124,6 +128,7 @@ fn spawn_cliff(
     }
 }
 
+/// Spawn an object that was detected by the scanner
 fn spawn_object(
     mut ev_objs: EventReader<ObjectData>,
     cybot_pos: Query<&Transform, (With<Cybot>, Without<PreviousCybot>)>,
@@ -177,6 +182,7 @@ fn spawn_object(
     }
 }
 
+/// Initial setup of the data required for the GUI
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -226,6 +232,24 @@ fn setup(
     ));
 }
 
+
+/// Allows the user to drag the camera around with their mouse and move the field
+fn cursor_drag(
+    mut query: Query<&mut Transform, With<Camera2d>>,
+    mut ev_mouse_move: EventReader<MouseMotion>,
+    btn: Res<Input<MouseButton>>,
+) {
+    let mut cam_pos = query.single_mut();
+    for ev in ev_mouse_move.iter() {
+        if btn.pressed(MouseButton::Right) {
+            cam_pos.translation.x -= ev.delta.x;
+            cam_pos.translation.y += ev.delta.y;
+        }
+    }
+}
+
+/// Update the state of the GUI checking if a command was sent to the robot, and a response has
+/// come back
 fn update(
     mut ev_objs: EventWriter<ObjectData>,
     mut ev_cliffs: EventWriter<CliffEvent>,
@@ -239,6 +263,7 @@ fn update(
     let mut cybot_pos = cybot.single_mut();
     let mut prev_pos = prev.single_mut();
 
+    // If the state is non-normal then we sent a command, check for a response
     if *state != State::Normal {
         let response = read_response(&mut socket);
         if response.is_err() {
@@ -270,8 +295,11 @@ fn update(
                 ]);
                 ev_path.send(PathEvent);
 
-                if cliff_detected || bump_detected {
-                    ev_cliffs.send(CliffEvent);
+                if cliff_detected {
+                    ev_cliffs.send(CliffEvent { color: Color::RED });
+                }
+                if bump_detected {
+                    ev_cliffs.send(CliffEvent { color: Color::ORANGE });
                 }
             }
             (State::SentTurn { .. }, Some(Response::TurnDone { total_angle })) => {
@@ -305,34 +333,18 @@ fn update(
         }
         *state = State::Normal;
     }
-
-    /*if keys.pressed(KeyCode::W) {
-        let move_by = cybot_pos
-            .rotation
-            .mul_vec3(Vec3::new(0., 100. * time.delta_seconds(), 0.));
-        cybot_pos.translation += move_by;
-    }
-    if keys.pressed(KeyCode::S) {
-        let move_by = cybot_pos
-            .rotation
-            .mul_vec3(Vec3::new(0., 100. * time.delta_seconds(), 0.));
-        cybot_pos.translation -= move_by;
-    }
-    if keys.pressed(KeyCode::A) {
-        cybot_pos.rotate_z(PI / 32.);
-    }
-    if keys.pressed(KeyCode::D) {
-        cybot_pos.rotate_z(-PI / 32.);
-    }*/
 }
 
+/// The main function where the GUI is initialized
 fn main() {
-    let socket = Socket(TcpStream::connect("192.168.1.1:288").unwrap());
+    // create the connection to the cybot
+    let socket = Socket(TcpStream::connect("localhost:2888").unwrap());
     socket
         .0
         .set_nonblocking(true)
         .expect("cannot get non-blocking");
 
+    // Start the GUI
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(CliPlugin)
@@ -345,6 +357,7 @@ fn main() {
         .add_system(spawn_path)
         .add_system(spawn_object)
         .add_system(spawn_cliff)
+        .add_system(cursor_drag)
         .add_system(update)
         .run();
 }

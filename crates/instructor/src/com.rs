@@ -30,7 +30,6 @@ pub fn read_response(
         }
         buffer.push(byte_buf[0]);
     }
-    println!("{:?}", buffer);
     let response: Response = postcard::from_bytes_cobs(&mut buffer)?;
     Ok(Some(response))
 }

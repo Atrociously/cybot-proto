@@ -7,8 +7,14 @@ use cyproto_core::Command;
 
 use crate::{Socket, State};
 
+
+/// Drive the cybot
+///
+/// This command will drive the robot forwards or backwards
+/// a positive distance value will drive forwards and a negative
+/// distance value will drive backwards
 #[derive(Parser, ConsoleCommand)]
-#[command(name = "drive", about = "Drive the cybot")]
+#[command(name = "drive")]
 pub struct DriveCli {
     #[arg(allow_negative_numbers = true)]
     pub distance: f32,
@@ -16,8 +22,14 @@ pub struct DriveCli {
     pub speed: NonZeroU16,
 }
 
+
+/// Turn the cybot
+///
+/// This command will turn the cybot counter-clockwise or clockwise
+/// a positive value will turn it counter-clockwise (left) and
+/// a negative value will turn it clockwise (right).
 #[derive(Parser, ConsoleCommand)]
-#[command(name = "turn", about = "Turn the cybot")]
+#[command(name = "turn")]
 pub struct TurnCli {
     #[arg(allow_negative_numbers = true)]
     pub angle: f32,
@@ -25,8 +37,11 @@ pub struct TurnCli {
     pub speed: NonZeroU16,
 }
 
+/// Scan the field
+///
+/// This command tells the robot to scan the field for objects
 #[derive(Parser, ConsoleCommand)]
-#[command(name = "scan", about = "Scan for objects on the field")]
+#[command(name = "scan")]
 pub struct ScanCli {
     #[arg(default_value_t = 0)]
     pub start: u8,
@@ -34,6 +49,8 @@ pub struct ScanCli {
     pub end: u8,
 }
 
+
+/// Send the drive command to the robot
 fn do_drive(
     mut cli: ConsoleCommand<DriveCli>,
     mut socket: ResMut<Socket>,
@@ -60,6 +77,7 @@ fn do_drive(
     *state = State::SentDrive { distance };
 }
 
+/// Send the turn command to the robot
 fn do_turn(mut cli: ConsoleCommand<TurnCli>, mut socket: ResMut<Socket>, mut state: ResMut<State>) {
     let TurnCli { angle, speed } = match cli.take() {
         Some(Ok(cmd)) => cmd,
@@ -82,6 +100,7 @@ fn do_turn(mut cli: ConsoleCommand<TurnCli>, mut socket: ResMut<Socket>, mut sta
     *state = State::SentTurn { angle };
 }
 
+/// Send the scan command to the robot
 fn do_scan(mut cli: ConsoleCommand<ScanCli>, mut socket: ResMut<Socket>, mut state: ResMut<State>) {
     let ScanCli { start, end } = match cli.take() {
         Some(Ok(cmd)) => cmd,
@@ -97,6 +116,7 @@ fn do_scan(mut cli: ConsoleCommand<ScanCli>, mut socket: ResMut<Socket>, mut sta
     *state = State::SentScan { start, end };
 }
 
+/// The plugin for adding the commands to the GUI
 pub struct CliPlugin;
 
 impl Plugin for CliPlugin {
@@ -109,7 +129,7 @@ impl Plugin for CliPlugin {
                 left_pos: 0.,
                 top_pos: 0.,
                 width: 200.,
-                height: 1080.,
+                height: 500.,
                 ..Default::default()
             });
     }
